@@ -30,9 +30,12 @@
 #include "html/h/visualization_html.h"
 #include "html/h/about_html.h"
 #include "html/h/wizard_html.h"
-#include "html/h/history_html.h"
+#if defined(ENABLE_HISTORY)
+    #include "html/h/history_html.h"
+#endif
 
-#define WEB_SERIAL_BUF_SIZE 2048
+//#define WEB_SERIAL_BUF_SIZE 2048
+#define WEB_SERIAL_BUF_SIZE 3072
 
 const char* const pinArgNames[] = {
     "pinCs", "pinCe", "pinIrq", "pinSclk", "pinMosi", "pinMiso", "pinLed0",
@@ -77,8 +80,9 @@ class Web {
             mWeb.on("/save",           HTTP_POST, std::bind(&Web::showSave,       this, std::placeholders::_1));
 
             mWeb.on("/live",           HTTP_ANY,  std::bind(&Web::onLive,         this, std::placeholders::_1));
+            #if defined(ENABLE_HISTORY)
             mWeb.on("/history",        HTTP_ANY, std::bind(&Web::onHistory,       this, std::placeholders::_1));
-
+            #endif
         #ifdef ENABLE_PROMETHEUS_EP
             mWeb.on("/metrics",        HTTP_ANY,  std::bind(&Web::showMetrics,    this, std::placeholders::_1));
         #endif
@@ -608,6 +612,7 @@ class Web {
             mConfig->serial.log2mqtt = (request->arg("log2mqtt") == "on");
 
             // display
+            #if defined(PLUGIN_DISPLAY)
             mConfig->plugin.display.pwrSaveAtIvOffline = (request->arg("disp_pwr") == "on");
             mConfig->plugin.display.graph_size  = request->arg("disp_graph_size").toInt();
             mConfig->plugin.display.rot         = request->arg("disp_rot").toInt();
@@ -634,7 +639,47 @@ class Web {
             mConfig->plugin.display.disp_reset  = (mConfig->plugin.display.type != DISP_TYPE_T10_EPAPER) ? DEF_PIN_OFF : request->arg("disp_rst").toInt();
             mConfig->plugin.display.disp_busy   = (mConfig->plugin.display.type != DISP_TYPE_T10_EPAPER) ? DEF_PIN_OFF : request->arg("disp_bsy").toInt();
             mConfig->plugin.display.pirPin      = (mConfig->plugin.display.screenSaver != DISP_TYPE_T2_SH1106_128X64) ? DEF_PIN_OFF : request->arg("pir_pin").toInt(); // pir pin only for motion screensaver
-                                                                                                                                              // otherweise default value
+            #endif                                                                                                                                       // otherweise default value
+
+            // Plugin ZeroExport
+            #if defined(PLUGIN_ZEROEXPORT)
+            mConfig->plugin.zeroExport.enabled = (request->arg("ze_enabled") == "on");
+            mConfig->plugin.zeroExport.log_over_webserial = (request->arg("ze_log_over_webserial") == "on");
+            mConfig->plugin.zeroExport.log_over_mqtt = (request->arg("ze_log_over_mqtt") == "on");
+            mConfig->plugin.zeroExport.debug = (request->arg("ze_debug") == "on");
+// TODO: sortieren
+//            mConfig->plugin.zeroExport.enabled = (request->arg("en_zeroexport") == "on");
+//            mConfig->plugin.zeroExport.two_percent = (request->arg("two_percent") == "on");
+//            mConfig->plugin.zeroExport.Iv = request->arg("Iv").toInt();
+//            mConfig->plugin.zeroExport.count_avg = request->arg("count_avg").toInt();
+//            mConfig->plugin.zeroExport.max_power = request->arg("max_power").toDouble();
+//            mConfig->plugin.zeroExport.power_avg = request->arg("power_avg").toFloat();
+//            mConfig->plugin.zeroExport.query_device = request->arg("query_device").toInt();
+//            mConfig->plugin.zeroExport.total_power = request->arg("total_power").toDouble();
+/*
+            if (request->arg("monitor_url") != "") {
+                String addr = request->arg("monitor_url");
+                addr.trim();
+                addr.toCharArray(mConfig->plugin.zeroExport.monitor_url, ZEXPORT_ADDR_LEN);
+            } else
+                mConfig->plugin.zeroExport.monitor_url[0] = '\0';
+
+            if (request->arg("json_path") != "") {
+                String addr = request->arg("json_path");
+                addr.trim();
+                addr.toCharArray(mConfig->plugin.zeroExport.json_path, ZEXPORT_ADDR_LEN);
+            } else
+                mConfig->plugin.zeroExport.json_path[0] = '\0';
+
+            if (request->arg("tibber_pw") != "") {
+                String addr = request->arg("tibber_pw");
+                addr.trim();
+                addr.toCharArray(mConfig->plugin.zeroExport.tibber_pw, 10);
+            } else
+                mConfig->plugin.zeroExport.tibber_pw[0] = '\0';
+*/
+            #endif
+            // Plugin ZeroExport - Ende
 
             mApp->saveSettings((request->arg("reboot") == "on"));
 
@@ -647,9 +692,11 @@ class Web {
             getPage(request, PROT_MASK_LIVE, visualization_html, visualization_html_len);
         }
 
+        #if defined(ENABLE_HISTORY)
         void onHistory(AsyncWebServerRequest *request) {
             getPage(request, PROT_MASK_HISTORY, history_html, history_html_len);
         }
+        #endif
 
         void onAbout(AsyncWebServerRequest *request) {
             AsyncWebServerResponse *response = beginResponse(request, 200, F("text/html; charset=UTF-8"), about_html, about_html_len);

@@ -82,6 +82,13 @@ typedef Simulator<HmSystemType> SimulatorType;
 typedef Display<HmSystemType, Radio> DisplayType;
 #endif
 
+// Plugin ZeroExport
+#if defined(PLUGIN_ZEROEXPORT)
+#include "plugins/zeroExport/zeroExport.h"
+typedef ZeroExport<HmSystemType> ZeroExportType;
+#endif
+// Plugin ZeroExport - Ende
+
 class app : public IApp, public ah::Scheduler {
    public:
         app();
@@ -365,6 +372,9 @@ class app : public IApp, public ah::Scheduler {
         }
         #endif
 
+        void subscribeExtern(const char *subTopic, uint8_t qos = QOS_0);
+        void unsubscribeExtern(const char *subTopic);
+
     private:
         #define CHECK_AVAIL     true
         #define SKIP_YIELD_DAY  true
@@ -385,7 +395,8 @@ class app : public IApp, public ah::Scheduler {
            updateLed();
         }
 
-        void mqttSubRxCb(JsonObject obj);
+        void mqttConnectCb(void);
+        void mqttSubRxCb(const char* topic, const uint8_t* payload, size_t len, size_t index, size_t total);
 
         void setupLed();
         void updateLed();
@@ -447,7 +458,11 @@ class app : public IApp, public ah::Scheduler {
         CmtRadio<> mCmtRadio;
         #endif
 
+        #if defined(PLUGIN_ZEROEXPORT)
+        char mVersion[17];
+        #else
         char mVersion[12];
+        #endif
         char mVersionModules[12];
         settings mSettings;
         settings_t *mConfig = nullptr;
@@ -481,6 +496,12 @@ class app : public IApp, public ah::Scheduler {
         #if defined(ENABLE_SIMULATOR)
         SimulatorType mSimulator;
         #endif /*ENABLE_SIMULATOR*/
+
+        // Plugin ZeroExport
+        #if defined(PLUGIN_ZEROEXPORT)
+        ZeroExportType mZeroExport;
+        #endif
+        // Plugin ZeroExport - Ende
 };
 
 #endif /*__APP_H__*/

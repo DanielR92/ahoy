@@ -17,6 +17,9 @@
 
 typedef std::function<void(uint8_t, Inverter<> *)> payloadListenerType;
 typedef std::function<void(Inverter<> *)> powerLimitAckListenerType;
+typedef std::function<void(Inverter<> *)> powerPowerAckListenerType;
+typedef std::function<void(Inverter<> *)> powerRebootAckListenerType;
+typedef std::function<void(Inverter<> *)> newDataListenerType;
 typedef std::function<void(Inverter<> *)> alarmListenerType;
 
 class Communication : public CommQueue<> {
@@ -47,6 +50,18 @@ class Communication : public CommQueue<> {
 
         void addPowerLimitAckListener(powerLimitAckListenerType cb) {
             mCbPwrAck = cb;
+        }
+
+        void addPowerPowerAckListener(powerPowerAckListenerType cb) {
+            mCbPwrPowerAck = cb;
+        }
+
+        void addPowerRebootAckListener(powerRebootAckListenerType cb) {
+            mCbPwrRebootAck = cb;
+        }
+
+        void addNewDataListener(newDataListenerType cb) {
+            mCbNewData = cb;
         }
 
         void addAlarmListener(alarmListenerType cb) {
@@ -492,8 +507,17 @@ class Communication : public CommQueue<> {
                     break;
 
                 case TurnOn: [[fallthrough]];
-                case TurnOff: [[fallthrough]];
+                case TurnOff: //[[fallthrough]];
+                    if (NULL != mCbPwrPowerAck) {
+                        (mCbPwrPowerAck)(q->iv);
+                    }
+                    return true;
+                    break;
+
                 case Restart:
+                    if (NULL != mCbPwrRebootAck) {
+                        (mCbPwrRebootAck)(q->iv);
+                    }
                     return true;
                     break;
 
@@ -517,7 +541,9 @@ class Communication : public CommQueue<> {
             DBGPRINT(F(" with PowerLimitControl "));
             DBGPRINTLN(String(q->iv->powerLimit[1]));
             q->iv->actPowerLimit = 0xffff; // unknown, readback current value
-            (mCbPwrAck)(q->iv);
+            if (NULL != mCbPwrAck) {
+                (mCbPwrAck)(q->iv);
+            }
 
             return accepted;
         }
@@ -608,6 +634,10 @@ class Communication : public CommQueue<> {
 
             q->iv->rssi = rssi;
             q->iv->doCalculations();
+
+            if (NULL != mCbNewData) {
+                (mCbNewData)(q->iv);
+            }
 
             if(AlarmData == q->cmd) {
                 uint8_t i = 0;
@@ -1063,6 +1093,9 @@ class Communication : public CommQueue<> {
         std::array<uint8_t, MAX_BUFFER> mPayload;
         payloadListenerType mCbPayload = NULL;
         powerLimitAckListenerType mCbPwrAck = NULL;
+        powerPowerAckListenerType mCbPwrPowerAck = NULL;
+        powerRebootAckListenerType mCbPwrRebootAck = NULL;
+        newDataListenerType mCbNewData = NULL;
         alarmListenerType mCbAlarm = NULL;
         Heuristic mHeu;
         uint32_t mLastEmptyQueueMillis = 0;

@@ -128,13 +128,13 @@
             function parseMqtt(obj) {
                 if(obj.enabled) {
                     lines = [
-                        tr("{#CONNECTED}", badge(obj.connected, ((obj.connected) ? "{#TRUE}" : "{#FALSE}"))),
+                        tr("{#CONNECTED}", badge(obj.connected, ((obj.connected) ? "true" : "false"))),
                         tr("#TX", obj.tx_cnt),
                         tr("#RX", obj.rx_cnt)
                     ]
 
                 } else
-                    lines = tr("{#ENABLED}", badge(false, "{#FALSE}"));
+                    lines = tr("enabled", badge(false, "false"));
 
                 document.getElementById("info").append(
                     headline("MqTT"),
@@ -164,7 +164,7 @@
             function parseIndex(obj) {
                 if(obj.ts_sunrise > 0) {
                     document.getElementById("info").append(
-                        headline("{#SUN}"),
+                        headline("Sun"),
                         ml("table", {class: "table"},
                             ml("tbody", {}, [
                                 tr("{#SUNRISE}", new Date(obj.ts_sunrise * 1000).toLocaleString('de-DE')),

@@ -18,7 +18,11 @@ app::app()
     , mSunrise {0}
     , mSunset  {0}
 {
+    #if defined(PLUGIN_ZEROEXPORT)
+    memset(mVersion, 0, sizeof(char) * 17);
+    #else
     memset(mVersion, 0, sizeof(char) * 12);
+    #endif
     memset(mVersionModules, 0, sizeof(char) * 12);
 }
 
@@ -62,9 +66,28 @@ void app::setup() {
 
     mCommunication.setup(&mTimestamp, &mConfig->serial.debug, &mConfig->serial.privacyLog, &mConfig->serial.printWholeTrace);
     mCommunication.addPayloadListener([this] (uint8_t cmd, Inverter<> *iv) { payloadEventListener(cmd, iv); });
-    #if defined(ENABLE_MQTT)
-        mCommunication.addPowerLimitAckListener([this] (Inverter<> *iv) { mMqtt.setPowerLimitAck(iv); });
-    #endif
+    #if defined(PLUGIN_ZEROEXPORT) || defined(ENABLE_MQTT)
+    mCommunication.addPowerLimitAckListener([this] (Inverter<> *iv) {
+        #if defined(PLUGIN_ZEROEXPORT)
+            mZeroExport.eventAckSetLimit(iv);
+        #endif /*PLUGIN_ZEROEXPORT*/
+        #if defined(ENABLE_MQTT)
+                mMqtt.setPowerLimitAck(iv);
+        #endif
+    });
+    #endif /*defined(PLUGIN_ZEROEXPORT) || defined(ENABLE_MQTT)*/
+    #if defined(PLUGIN_ZEROEXPORT)
+    mCommunication.addPowerPowerAckListener([this] (Inverter<> *iv) {
+        mZeroExport.eventAckSetPower(iv);
+    });
+    mCommunication.addPowerRebootAckListener([this] (Inverter<> *iv) {
+        mZeroExport.eventAckSetReboot(iv);
+    });
+    mCommunication.addNewDataListener([this] (Inverter<> *iv) {
+        mZeroExport.eventNewDataAvailable(iv);
+    });
+    #endif /*PLUGIN_ZEROEXPORT*/
+
     mSys.setup(&mTimestamp, &mConfig->inst, this);
     for (uint8_t i = 0; i < MAX_NUM_INVERTERS; i++) {
         initInverter(i);
@@ -82,7 +105,8 @@ void app::setup() {
     mMqttEnabled = (mConfig->mqtt.broker[0] > 0);
     if (mMqttEnabled) {
         mMqtt.setup(this, &mConfig->mqtt, mConfig->sys.deviceName, mVersion, &mSys, &mTimestamp, &mUptime);
-        mMqtt.setSubscriptionCb([this](JsonObject obj) { mqttSubRxCb(obj); });
+        mMqtt.setConnectionCb(std::bind(&app::mqttConnectCb, this));
+        mMqtt.setSubscriptionCb(std::bind(&app::mqttSubRxCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         mCommunication.addAlarmListener([this](Inverter<> *iv) { mMqtt.alarmEvent(iv); });
     }
     #endif
@@ -109,6 +133,12 @@ void app::setup() {
     #endif
 
     esp_task_wdt_reset();
+
+    // Plugin ZeroExport
+    #if defined(PLUGIN_ZEROEXPORT)
+    mZeroExport.setup(this, &mTimestamp, &mConfig->plugin.zeroExport, &mSys, mConfig, &mApi, &mMqtt);
+    #endif /*PLUGIN_ZEROEXPORT*/
+    // Plugin ZeroExport - Ende
 
     #if defined(ENABLE_HISTORY)
     mHistory.setup(this, &mSys, mConfig, &mTimestamp);
@@ -148,6 +178,15 @@ void app::loop(void) {
     #if defined(PLUGIN_DISPLAY)
     mDisplay.loop();
     #endif
+
+    // Plugin ZeroExport
+    #if defined(PLUGIN_ZEROEXPORT)
+    if(mConfig->nrf.enabled || mConfig->cmt.enabled) {
+        mZeroExport.loop();
+    }
+    #endif
+    // Plugin ZeroExport - Ende
+
     yield();
 }
 
@@ -197,6 +236,13 @@ void app::regularTickers(void) {
     if (DISP_TYPE_T0_NONE != mConfig->plugin.display.type)
         everySec([this]() { mDisplay.tickerSecond(); }, "disp");
     #endif
+
+    // Plugin ZeroExport
+    #if defined(PLUGIN_ZEROEXPORT)
+    everySec(std::bind(&ZeroExportType::tickSecond, &mZeroExport), "ZeroExport");
+    #endif
+    // Plugin ZeroExport - Ende
+
     every([this]() { mPubSerial.tick(); }, 5, "uart");
     //everySec([this]() { mImprov.tickSerial(); }, "impro");
 
@@ -359,6 +405,10 @@ void app::tickMidnight(void) {
             mMqtt.tickerMidnight();
         #endif
     }
+
+    #if defined(PLUGIN_ZEROEXPORT)
+        mZeroExport.tickMidnight();
+    #endif /*defined(PLUGIN_ZEROEXPORT)*/
 }
 
 //-----------------------------------------------------------------------------
@@ -378,6 +428,15 @@ void app::tickSend(void) {
         Inverter<> *iv = mSys.getInverterByPos(i);
         if(!sendIv(iv))
             notAvail = false;
+            // Plugin ZeroExport
+//            #if defined(PLUGIN_ZEROEXPORT)
+// TODO: aufr�umen
+//            if(mConfig->nrf.enabled || mConfig->cmt.enabled) {
+//                mZeroExport.loop();
+//                zeroexport();
+//            }
+//            #endif
+            // Plugin ZeroExport - Ende
     }
 
     if(mAllIvNotAvail != notAvail)
@@ -474,7 +533,13 @@ void app:: zeroIvValues(bool checkAvail, bool skipYieldDay) {
 
 //-----------------------------------------------------------------------------
 void app::resetSystem(void) {
+    #if defined(PLUGIN_ZEROEXPORT)
+#warning "VERSION_ZEROEXPORT"
+//    snprintf(mVersion, sizeof(mVersion), "%d.%d.%d-zero", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    snprintf(mVersion, sizeof(mVersion), "%d.%d.%d-%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_ZEROEXPORT);
+    #else
     snprintf(mVersion, sizeof(mVersion), "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    #endif
     snprintf(mVersionModules, sizeof(mVersionModules), "%s",
     #ifdef ENABLE_PROMETHEUS_EP
         "P"
@@ -529,10 +594,184 @@ void app::resetSystem(void) {
 }
 
 //-----------------------------------------------------------------------------
-void app::mqttSubRxCb(JsonObject obj) {
-    mApi.ctrlRequest(obj);
+void app::mqttConnectCb(void) {
+#if defined(PLUGIN_ZEROEXPORT)
+    mZeroExport.onMqttConnect();
+#endif
 }
 
+//-----------------------------------------------------------------------------
+void app::mqttSubRxCb(const char* topic, const uint8_t* payload, size_t len, size_t index, size_t total)
+{
+    if (mConfig->serial.debug)
+    {
+        DPRINT(DBG_INFO, mqttStr[MQTT_STR_GOT_TOPIC]);
+        DBGPRINTLN(String(topic));
+    }
+
+    #if defined(PLUGIN_ZEROEXPORT)
+        // FremdTopic ist für ZeroExport->Powermeter
+        // AhoyTopic ist für ZeroExport
+        if (mZeroExport.onMqttMessage(topic, payload, len)) return;
+    #endif
+
+    // AhoyTopic ist für Ahoy
+    int baseTopicLen = strlen(mConfig->mqtt.topic) + strlen("/ctrl") + 1;
+    char baseTopic[baseTopicLen];
+
+    strcpy(baseTopic, mConfig->mqtt.topic);  // copy mqtt.topic
+    strcat(baseTopic, "/ctrl"); // '/ctrl' concat
+
+    if (strncmp(topic, baseTopic, strlen(baseTopic)) == 0)
+    {
+        DPRINT(DBG_INFO, mqttStr[MQTT_STR_GOT_TOPIC]);
+        DBGPRINT("alles super");
+        DBGPRINTLN(String(topic));
+
+        const char* p = topic + strlen(baseTopic);
+
+        // extract number from topic
+        int IvID = -1;
+        while (*p) {
+            if (isdigit(*p)) {
+                IvID = atoi(p);
+                break;
+            }
+            p++;
+        }
+
+        // reset to pointer with offset
+        p = topic + strlen(baseTopic);
+
+        Inverter<> *iv = mSys.getInverterByPos(IvID);
+        String sPayload = String((const char*)payload).substring(0, len);
+
+        // ???/ctrl/limit/+             100 % oder 400 W
+        if (strncmp(p, "/limit", strlen("/limit")) == 0) {
+            // immer
+            DBGPRINT(String("limit "));
+            DBGPRINTLN(String(IvID));
+
+            iv->powerLimit[0] = static_cast<uint16_t>(sPayload.toInt() * 10.0);
+
+            if (sPayload.endsWith("W"))
+                iv->powerLimit[1] = AbsolutNonPersistent;
+            else if (sPayload.endsWith("%"))
+                iv->powerLimit[1] = RelativNonPersistent;
+
+            if (iv->setDevControlRequest(ActivePowerContr))
+                triggerTickSend(iv->id);
+
+            return;
+        }
+
+        // ???/ctrl/power/+             0/1
+        if (strncmp(p, "/power", strlen("/power")) == 0) {
+            // immer
+            DBGPRINT(String("power "));
+            DBGPRINTLN(String(IvID));
+
+            if (sPayload.equals("1") || sPayload.equals("true"))
+            {
+                if (iv->setDevControlRequest(TurnOn))
+                    triggerTickSend(iv->id);
+            }
+            else if (sPayload.equals("0") || sPayload.equals("false"))
+            {
+                if (iv->setDevControlRequest(TurnOff))
+                    triggerTickSend(iv->id);
+            }
+            return;
+        }
+
+        // ???/ctrl/restart/+           0/1
+        if (strncmp(p, "/restart", strlen("/restart")) == 0) {
+            // mit NR = WR
+            if (IvID != -1)
+            {
+                DBGPRINT(String("restart Iv "));
+                DBGPRINTLN(String(IvID));
+
+                if (sPayload.equals("1") || sPayload.equals("true"))
+                {
+                    if (iv->setDevControlRequest(Restart)) {
+                        triggerTickSend(iv->id);
+                    }
+                    mMqtt.publish(topic, "successful", false, QOS_2);
+                }
+
+            }
+            // ohne NR = Ahoy
+            else
+            {
+                //TODO: set mqtt-topic back to false (=>successful)? wait a moment
+                DBGPRINTLN(String("restart Ahoy"));
+                if (sPayload.equals("1") || sPayload.equals("true"))
+                {
+                    mMqtt.publish(topic, "successful", false, QOS_2);
+                    yield();
+                    delay(1000);
+                    yield();
+                    ESP.restart();
+                }
+            }
+            return;
+        }
+        return;
+    }
+
+/// TODO: discuss setup???
+        // ???/setup/set_time           unix timestamp
+/// TODO: Wunschdenken?
+
+}
+
+/*
+            bool limitAbs = false;
+            if(len > 0) {
+                char *pyld = new char[len + 1];
+                memcpy(pyld, payload, len);
+                pyld[len] = '\0';
+                if(NULL == strstr(topic, "limit"))
+                    root[F("val")] = atoi(pyld);
+                else
+                    root[F("val")] = atof(pyld);
+
+                if(pyld[len-1] == 'W')
+                    limitAbs = true;
+                delete[] pyld;
+            }
+
+            const char *p = topic + strlen(mCfgMqtt->topic);
+            uint8_t pos = 0, elm = 0;
+            char tmp[30];
+
+            while(1) {
+                if(('/' == p[pos]) || ('\0' == p[pos])) {
+                    memcpy(tmp, p, pos);
+                    tmp[pos] = '\0';
+                    switch(elm++) {
+                        case 1: root[F("path")] = String(tmp); break;
+                        case 2:
+                            if(strncmp("limit", tmp, 5) == 0) {
+                                if(limitAbs)
+                                    root[F("cmd")] = F("limit_nonpersistent_absolute");
+                                else
+                                    root[F("cmd")] = F("limit_nonpersistent_relative");
+                            } else
+                                root[F("cmd")] = String(tmp);
+                            break;
+                        case 3: root[F("id")] = atoi(tmp);   break;
+                        default: break;
+                    }
+                    if('\0' == p[pos])
+                        break;
+                    p = p + pos + 1;
+                    pos = 0;
+                }
+                pos++;
+            }
+*/
 //-----------------------------------------------------------------------------
 void app::setupLed(void) {
     uint8_t led_off = (mConfig->led.high_active) ? 0 : 255;
@@ -578,4 +817,15 @@ void app::updateLed(void) {
         else
             analogWrite(mConfig->led.led[2], led_off);
     }
+}
+
+
+
+
+void app::subscribeExtern(const char *subTopic, uint8_t qos) {
+    mMqtt.subscribeExtern(subTopic, qos);
+}
+
+void app::unsubscribeExtern(const char *subTopic) {
+    mMqtt.unsubscribeExtern(subTopic);
 }

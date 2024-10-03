@@ -28,7 +28,8 @@
 #include "pubMqttDefs.h"
 #include "pubMqttIvData.h"
 
-typedef std::function<void(JsonObject)> subscriptionCb;
+typedef std::function<void(const char*, const uint8_t*, size_t, size_t, size_t)> subscriptionCb;
+typedef std::function<void(void)> connectionCb;
 
 typedef struct {
     bool running;
@@ -114,9 +115,16 @@ class PubMqtt {
             queue.swap(mReceiveQueue);
             xSemaphoreGive(mutex);
 
-            while (!queue.empty()) {
+            while (!queue.empty())
+            {
+#warning "TODO: sTopic und sPayload hier fällen und dann übergeben?";
+#warning "Ist es wirklich so, dass die Payload eines Topics aus mehreren Nachrichten bestehen kann und erst zusammengesetzt werden muss? Was ist dann mit der Reihenfolge?";
                 message_s *entry = &queue.front();
-                handleMessage(entry->topic, entry->payload, entry->len, entry->index, entry->total);
+                if(NULL != mSubscriptionCb)
+                {
+                    (mSubscriptionCb)(entry->topic, entry->payload, entry->len, entry->index, entry->total);
+                    mRxCnt++;
+                }
                 queue.pop();
             }
 
@@ -246,6 +254,22 @@ class PubMqtt {
             mClient.subscribe(topic, qos);
         }
 
+        void subscribeExtern(const char *subTopic, uint8_t qos = QOS_0) {
+            char topic[MQTT_TOPIC_LEN + 20];
+            snprintf(topic, (MQTT_TOPIC_LEN + 20), "%s", subTopic);
+            mClient.subscribe(topic, qos);
+        }
+
+        // new - need to unsubscribe the topics.
+        void unsubscribeExtern(const char *subTopic)
+        {
+            mClient.unsubscribe(subTopic);  // add as many topics as you like
+        }
+
+        void setConnectionCb(connectionCb cb) {
+            mConnectionCb = cb;
+        }
+
         void setSubscriptionCb(subscriptionCb cb) {
             mSubscriptionCb = cb;
         }
@@ -291,7 +315,10 @@ class PubMqtt {
             snprintf(mVal.data(), mVal.size(), "ctrl/restart_ahoy");
             subscribe(mVal.data());
 
-            for(uint8_t i = 0; i < MAX_NUM_INVERTERS; i++) {
+            snprintf(mVal.data(), mVal.size(), "ctrl/restart_ahoy");
+            subscribe(mVal.data());
+
+           for(uint8_t i = 0; i < MAX_NUM_INVERTERS; i++) {
                 snprintf(mVal.data(), mVal.size(), "ctrl/limit/%d", i);
                 subscribe(mVal.data(), QOS_2);
                 snprintf(mVal.data(), mVal.size(), "ctrl/restart/%d", i);
@@ -299,7 +326,13 @@ class PubMqtt {
                 snprintf(mVal.data(), mVal.size(), "ctrl/power/%d", i);
                 subscribe(mVal.data());
             }
+            snprintf(mVal.data(), mVal.size(), "ctrl/#");
+            subscribe(mVal.data(), QOS_2);
             subscribe(subscr[MQTT_SUBS_SET_TIME]);
+
+            if(NULL == mConnectionCb)
+                return;
+            (mConnectionCb)();
         }
 
         void onDisconnect(espMqttClientTypes::DisconnectReason reason) {
@@ -328,76 +361,25 @@ class PubMqtt {
             }
         }
 
-        void onMessage(const espMqttClientTypes::MessageProperties& properties, const char* topic, const uint8_t* payload, size_t len, size_t index, size_t total) {
-            if(len == 0)
+        void onMessage(const espMqttClientTypes::MessageProperties& properties, const char* topic, const uint8_t* payload, size_t len, size_t index, size_t total)
+        {
+#warning "TODO: if aktivieren nach Logprüfung. Was bedeutet index und total?";
+//            if (total != 1) {
+//                DPRINTLN(DBG_ERROR, String("pubMqtt.h: onMessage ERROR: index=") + String(index) + String(" total=") + String(total));
+//                return;
+//            }
+
+            if (len == 0) {
+                DPRINT(DBG_INFO, String("MQTT-topic: "));
+                DPRINT(DBG_INFO, String(topic));
+                DPRINTLN(DBG_INFO, String(" is empty."));
                 return;
+            }
 
             xSemaphoreTake(mutex, portMAX_DELAY);
             mReceiveQueue.push(message_s(topic, payload, len, index, total));
             xSemaphoreGive(mutex);
 
-        }
-
-        inline void handleMessage(const char* topic, const uint8_t* payload, size_t len, size_t index, size_t total) {
-            DPRINT(DBG_INFO, mqttStr[MQTT_STR_GOT_TOPIC]);
-            DBGPRINTLN(String(topic));
-            if(NULL == mSubscriptionCb)
-                return;
-
-            DynamicJsonDocument json(128);
-            JsonObject root = json.to<JsonObject>();
-
-            bool limitAbs = false;
-            if(len > 0) {
-                char *pyld = new char[len + 1];
-                memcpy(pyld, payload, len);
-                pyld[len] = '\0';
-                if(NULL == strstr(topic, "limit"))
-                    root[F("val")] = atoi(pyld);
-                else
-                    root[F("val")] = atof(pyld);
-
-                if(pyld[len-1] == 'W')
-                    limitAbs = true;
-                delete[] pyld;
-            }
-
-            const char *p = topic + strlen(mCfgMqtt->topic);
-            uint8_t pos = 0, elm = 0;
-            char tmp[30];
-
-            while(1) {
-                if(('/' == p[pos]) || ('\0' == p[pos])) {
-                    memcpy(tmp, p, pos);
-                    tmp[pos] = '\0';
-                    switch(elm++) {
-                        case 1: root[F("path")] = String(tmp); break;
-                        case 2:
-                            if(strncmp("limit", tmp, 5) == 0) {
-                                if(limitAbs)
-                                    root[F("cmd")] = F("limit_nonpersistent_absolute");
-                                else
-                                    root[F("cmd")] = F("limit_nonpersistent_relative");
-                            } else
-                                root[F("cmd")] = String(tmp);
-                            break;
-                        case 3: root[F("id")] = atoi(tmp);   break;
-                        default: break;
-                    }
-                    if('\0' == p[pos])
-                        break;
-                    p = p + pos + 1;
-                    pos = 0;
-                }
-                pos++;
-            }
-
-            char out[128];
-            serializeJson(root, out, 128);
-            DPRINTLN(DBG_INFO, "json: " + String(out));
-            (mSubscriptionCb)(root);
-
-            mRxCnt++;
         }
 
         void discoveryConfigLoop(void) {
@@ -737,6 +719,7 @@ class PubMqtt {
         uint32_t mRxCnt = 0, mTxCnt = 0;
         std::queue<sendListCmdIv> mSendList;
         std::array<bool, MAX_NUM_INVERTERS> mSendAlarm;
+        connectionCb mConnectionCb = nullptr;
         subscriptionCb mSubscriptionCb = nullptr;
         bool mLastAnyAvail = false;
         std::array<InverterStatus, MAX_NUM_INVERTERS> mLastIvState;

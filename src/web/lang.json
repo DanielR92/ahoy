@@ -812,6 +812,271 @@
                     "token": "NO_NETWORK_FOUND",
                     "en": "no network found",
                     "de": "kein Netzwerk gefunden"
+                },
+                {
+                "token": "ZE",
+                    "en": "Demand-optimized power control",
+                    "de": "Bedarfsorientierte Leistungsregelung"
+                },
+                {
+                    "token": "ZE_ENABLED",
+                    "en": "Enabled",
+                    "de": "Aktiviert"
+                },
+                {
+                    "token": "ZE_LOG_OVER_WEBSERIAL",
+                    "en": "Log over Webserial",
+                    "de": "Log in Webserial"
+                },
+                {
+                    "token": "ZE_LOG_OVER_MQTT",
+                    "en": "Log over MQTT",
+                    "de": "Log in MQTT"
+                },
+                {
+                    "token": "ZE_DEBUG",
+                    "en": "Debug",
+                    "de": "Debug"
+                },
+                {
+                    "token": "ZE_GROUP_ENABLED",
+                    "en": "State:",
+                    "de": "Status:"
+                },
+                {
+                    "token": "ZE_GROUP_MODE",
+                    "en": "Mode:",
+                    "de": "Modus:"
+                },
+                {
+                    "token": "ZE_MODE_SLEEP",
+                    "en": "sleep",
+                    "de": "Standby"
+                },
+                {
+                    "token": "ZE_MODE_NORMAL",
+                    "en": "normal",
+                    "de": "Normal"
+                },
+                {
+                    "token": "ZE_GROUP_ID",
+                    "en": "Group:",
+                    "de": "Gruppe:"
+                },
+                {
+                    "token": "ZE_GROUP_NAME",
+                    "en": "Name:",
+                    "de": "Name:"
+                },
+                {
+                    "token": "ZE_GROUP_POWERTOTAL",
+                    "en": "PowerTotal (W):",
+                    "de": "Leistung (W):"
+                },
+                {
+                    "token": "ZE_GROUP_EDIT",
+                    "en": "Edit",
+                    "de": "Bearbeiten"
+                },
+                {
+                    "token": "ZE_GROUP_DELETE",
+                    "en": "Delete",
+                    "de": "L&ouml;schen"
+                },
+                {
+                    "token": "ZE_GROUP_EDIT_MODAL",
+                    "en": "Edit group",
+                    "de": "Gruppe bearbeiten"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_GENERAL",
+                    "en": "General:",
+                    "de": "Allgemein:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_GENERAL_GRUPPE",
+                    "en": "Group:",
+                    "de": "Gruppe:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_GENERAL_ENABLE",
+                    "en": "Enabled:",
+                    "de": "Aktiviert:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_GENERAL_NAME",
+                    "en": "Name:",
+                    "de": "Name:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER",
+                    "en": "Powermeter",
+                    "de": "Leistungsmessung"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_REFRESH",
+                    "en": "Refresh (s):",
+                    "de": "Zykluszeit (s):"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_TYPE",
+                    "en": "Type:",
+                    "de": "Typ:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_SRC",
+                    "en": "IP / Topic:",
+                    "de": "IP / Topic:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_JSONPATH",
+                    "en": "JSON Path:",
+                    "de": "JSON Pfad:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_USER",
+                    "en": "Username:",
+                    "de": "Benutzername:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_PASS",
+                    "en": "Password:",
+                    "de": "Passwort:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_POWERMETER_TARGET",
+                    "en": "Target:",
+                    "de": "Ziel:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER",
+                    "en": "Inverter",
+                    "de": "Wechselrichter"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER_ENABLED",
+                    "en": "Enabled:",
+                    "de": "Aktiviert:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER_NAME",
+                    "en": "Name",
+                    "de": "Name"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER_POWERMIN",
+                    "en": "Power (Min)",
+                    "de": "Leistung (Min)"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER_POWERMAX",
+                    "en": "Power (Max)",
+                    "de": "Leistung (Max)"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_INVERTER_TURNOFF",
+                    "en": "Turn On/Off",
+                    "de": "Schalte Ein/Aus"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY",
+                    "en": "Battery",
+                    "de": "Batterie"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY_CFG",
+                    "en": "Mode:",
+                    "de": "Modus:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY_TOPIC",
+                    "en": "Topic:",
+                    "de": "Topic:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY_LIMITON",
+                    "en": "Limit On:",
+                    "de": "Limit Ein:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY_LIMITOFF",
+                    "en": "Limit Off:",
+                    "de": "Limit Aus:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_BATTERY_ONOFF",
+                    "en": "Power:",
+                    "de": "Power:"
+                },
+                {
+                    "token": "BTN_ON",
+                    "en": "On",
+                    "de": "Ein"
+                },
+                {
+                    "token": "BTN_OFF",
+                    "en": "Off",
+                    "de": "Aus"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED",
+                    "en": "Advanced",
+                    "de": "Erweitert"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_SETPOINT",
+                    "en": "SetPoint (Watt):",
+                    "de": "Zielpunkt (Watt):"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_MINIMUM",
+                    "en": "Minimum:",
+                    "de": "Minimum (Grundlast):"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_POWERTOLERANCE",
+                    "en": "Power tolerances (Watt):",
+                    "de": "Leistung Toleranz (Watt)"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_POWERMAX",
+                    "en": "Group Power max (Watt):",
+                    "de": "Gruppe Leistung Max (Watt):"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_KP",
+                    "en": "Kp:",
+                    "de": "Kp:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_KI",
+                    "en": "Ki:",
+                    "de": "Ki:"
+                },
+                {
+                    "token": "ZE_GROUP_TAB_ADVANCED_KD",
+                    "en": "Kd:",
+                    "de": "Kd:"
+                },
+                {
+                    "token": "ZE_GROUP_EDIT_BTN_SAVE",
+                    "en": "save",
+                    "de": "speichern"
+                },
+                {
+                    "token": "ZE_GROUP_DELETE_MODAL",
+                    "en": "Delete group",
+                    "de": "Gruppe l&ouml;schen "
+                },
+                {
+                    "token": "ZE_GROUP_DELETE_SURE",
+                    "en": "do you really want to delete group?",
+                    "de": "Willst du die Gruppe wirklich l&ouml;schen?"
+                },
+                {
+                    "token": "ZE_GROUP_DELETE_BTN_YES",
+                    "en": "yes",
+                    "de": "ja"
                 }
             ]
         },
