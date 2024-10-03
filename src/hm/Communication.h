@@ -223,11 +223,11 @@ class Communication : public CommQueue<> {
                                         mHeu.setIvRetriesGood(q->iv,p->millis < LIMIT_VERYFAST_IV);
                                 }
                             } else if (p->packet[0] == (TX_REQ_DEVCONTROL + ALL_FRAMES)) { // response from dev control command
+                                q->iv->radio->mBufCtrl.pop();
                                 if(parseDevCtrl(p, q))
                                     closeRequest(q, true);
                                 else
                                     closeRequest(q, false);
-                                q->iv->radio->mBufCtrl.pop();
                                 return; // don't wait for empty buffer
                             } else if(IV_MI == q->iv->ivGen) {
                                 parseMiFrame(p, q);
@@ -677,13 +677,12 @@ class Communication : public CommQueue<> {
             if(q->isDevControl)
                 keep = !crcPass;
 
+            q->iv->mGotFragment = false;
+            q->iv->mGotLastMsg  = false;
+            q->iv->miMultiParts = 0;
+
             if(keep)
                 cmdReset(q); // q will be zero'ed after that command
-            else {
-                q->iv->mGotFragment = false;
-                q->iv->mGotLastMsg  = false;
-                q->iv->miMultiParts = 0;
-            }
 
             mIsRetransmit       = false;
             mCompleteRetry      = false;
